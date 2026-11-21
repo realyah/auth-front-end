@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const { public: { appName } } = useRuntimeConfig()
 const { user, isAuthenticated, logout } = useAuth()
+const { isAdmin } = useAdmin()
 </script>
 
 <template>
@@ -21,6 +22,14 @@ const { user, isAuthenticated, logout } = useAuth()
             size="sm"
           >
             Dashboard
+          </BaseButton>
+          <BaseButton
+            v-if="isAdmin"
+            to="/admin/logins"
+            variant="ghost"
+            size="sm"
+          >
+            Admin
           </BaseButton>
           <NuxtLink
             to="/profile"
