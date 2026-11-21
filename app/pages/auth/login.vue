@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth', middleware: 'guest' })
-useSeoMeta({ title: 'Log in' })
+useSeoMeta({ title: 'Log in', description: 'Log in to your account.' })
 </script>
 
 <template>
