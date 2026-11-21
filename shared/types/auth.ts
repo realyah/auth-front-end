@@ -154,7 +154,10 @@ export interface AboutMe extends AboutMeFields {
 
 // ── Admin ────────────────────────────────────────────────
 
-/** One login attempt with a location (GPS if shared, otherwise IP lookup). */
+/**
+ * One login attempt. Location comes from browser GPS if shared, otherwise IP lookup.
+ * `lat`/`lng` are null when unknown (only in the user's own list — the admin list is located-only).
+ */
 export interface LoginEvent {
   id: string
   userId: string | null
@@ -163,8 +166,8 @@ export interface LoginEvent {
   ip: string | null
   country: string | null
   city: string | null
-  lat: number
-  lng: number
+  lat: number | null
+  lng: number | null
   accuracyM: number | null
   source: 'gps' | 'ip'
   createdAt: string
@@ -177,6 +180,12 @@ export interface LoginEventsQuery {
   userId?: string
   success?: boolean
 }
+
+/** GET /auth/login-events query (own attempts): days 1–365 (30), limit 1–1000 (100). */
+export type MyLoginEventsQuery = Omit<LoginEventsQuery, 'userId'>
+
+/** A login event with known coordinates (what the map can show). */
+export type LocatedLoginEvent = LoginEvent & { lat: number, lng: number }
 
 export interface LoginEventsResponse {
   count: number
