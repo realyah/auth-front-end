@@ -62,15 +62,15 @@ The space after `--` is required. The user sees the Admin link after reloading t
 
 | Route | Who | What |
 | --- | --- | --- |
-| `/` | Everyone | Home page |
+| `/` | Everyone | Home page. Where you land after login or sign-up. |
 | `/auth/login` | Logged out | Log in (location is requested automatically) |
 | `/auth/register` | Logged out | Create an account, then log straight in |
-| `/profile` | Logged in | Where you land after login. Upload, change or remove your picture; edit your player details. |
+| `/profile` | Logged in | Upload, change or remove your picture; edit your player details. |
 | `/dashboard` | Logged in | Read-only view of all your player details and last login |
 | `/security` | Logged in | Your own login activity: every sign-in and failed attempt, with a map |
 | `/admin/logins` | Admins | Map and table of login attempts, filterable by time, result and user |
 
-Logged-in users who open the login or sign-up page are sent to `/profile`. Logged-out users who open a protected page are sent to login, then back to that page afterwards.
+Logged-in users who open the login or sign-up page are sent to `/`. Logged-out users who open a protected page are sent to login, then back to that page afterwards.
 
 ## How it talks to the API
 
