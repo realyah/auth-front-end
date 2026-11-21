@@ -63,10 +63,11 @@ The space after `--` is required. The user sees the Admin link after reloading t
 | Route | Who | What |
 | --- | --- | --- |
 | `/` | Everyone | Home page |
-| `/auth/login` | Logged out | Log in, with an optional "Share my location" box |
+| `/auth/login` | Logged out | Log in (location is requested automatically) |
 | `/auth/register` | Logged out | Create an account, then log straight in |
 | `/profile` | Logged in | Where you land after login. Upload, change or remove your picture; edit your player details. |
 | `/dashboard` | Logged in | Read-only view of all your player details and last login |
+| `/security` | Logged in | Your own login activity: every sign-in and failed attempt, with a map |
 | `/admin/logins` | Admins | Map and table of login attempts, filterable by time, result and user |
 
 Logged-in users who open the login or sign-up page are sent to `/profile`. Logged-out users who open a protected page are sent to login, then back to that page afterwards.
@@ -96,15 +97,19 @@ await $api('/auth/profile', { method: 'PUT', body: { team: 'Reds' } })
 | Logout | `POST /auth/logout` | Destroys the session on the server. |
 | Expiry | any request → 401 | `reason: IDLE_TIMEOUT` (30 min idle) or `REAUTH_REQUIRED` (8 h after login). The login page explains which. |
 
-### Location at login (optional)
+### Location at login
 
-The login form has an **unticked** "Share my location to protect my account" box. When ticked, `getGeo()` (`app/utils/geo.ts`) asks the browser for its position, and the result is sent as `geo: { lat, lng, accuracy }` in the login body.
+When the login page opens, `getGeo()` (`app/utils/geo.ts`) asks the browser for its position automatically, with no checkbox. The result is sent as `geo: { lat, lng, accuracy }` in the login body. A short note under the Log in button tells users their sign-in location is recorded.
 
-Location never blocks login. If the user says no, the browser fails, or it takes longer than about 8 seconds, the login goes ahead without it and the API uses the IP address. The browser only allows location on HTTPS or `localhost`.
+The browser still shows its own permission prompt the first time; no site can skip it. Location never blocks login: if the user says no, the browser fails, or the position isn't ready within about 3 seconds of pressing Log in, the login goes ahead without it and the API uses the IP address. The browser only allows location on HTTPS or `localhost`.
+
+### My login activity
+
+`/security` loads `GET /auth/login-events` (`useLoginActivity().myLoginEvents()`), which returns only the logged-in user's attempts, both successful and failed. Unlike the admin list, attempts without a location are included with `lat: null`: the table shows them as "Unknown location" and the map leaves them out. Failed attempts are highlighted with a "Not you?" hint.
 
 ### Admin login map
 
-`/admin/logins` loads `GET /admin/login-events` and shows it on a Leaflet + OpenStreetMap map (`app/components/admin/LoginMap.vue`):
+`/admin/logins` loads `GET /admin/login-events` and shows it on a Leaflet + OpenStreetMap map (`app/components/admin/LoginMap.vue`, also used on `/security`; it skips events without coordinates):
 
 - green pins are successful logins, red pins are failed ones, and each pin has a circle showing how accurate its location is
 - popups are built with `textContent`, never `innerHTML`
@@ -149,6 +154,7 @@ app/
     useAuth.ts              login, register, logout, restoreSession, fetchUser
     useProfile.ts           update details, upload/delete picture, avatarSrc()
     useAdmin.ts             isAdmin, loginEvents()
+    useLoginActivity.ts     myLoginEvents(), loginEventPlace()
     useFormErrors.ts        API errors → form messages
     useTodosApi.ts          Todo endpoints (no UI yet)
     useAboutMeApi.ts        All About Me endpoints (no UI yet)
@@ -171,5 +177,5 @@ shared/types/auth.ts        API request/response types
 | Logged out after every reload | You're on `[::1]` instead of `localhost`, or the backend restarted (in-memory sessions are wiped on each restart unless `REDIS_URL` is set). |
 | 401 on `/api/auth/session` in DevTools | Normal when logged out: that's how the app finds out. |
 | No Admin link | The user isn't an admin. Run `make-admin` in the backend, then reload. |
-| Map is empty | No located attempts in that time range. Locally, tick "Share my location" when logging in. |
+| Map is empty | No located attempts in that time range. Locally, only logins where the browser shared its location appear. Allow location when the browser asks. |
 | `npm run make-admin` shows npm's help | Run it in the backend folder, with a space after `--`: `npm run make-admin -- yah`. |
