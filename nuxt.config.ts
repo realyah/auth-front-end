@@ -5,6 +5,10 @@ export default defineNuxtConfig({
 
   modules: ['@pinia/nuxt', '@nuxt/eslint'],
 
+  // Client-only (SPA). The API session is an HttpOnly cookie on the API's own
+  // host, which the Nuxt server can't see — so auth can only be checked in the browser.
+  ssr: false,
+
   devtools: { enabled: true },
 
   app: {
@@ -17,12 +21,12 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
-    // Server-only (override with NUXT_API_SECRET)
-    apiSecret: '',
     public: {
       // Exposed to the client (override with NUXT_PUBLIC_API_BASE)
       apiBase: 'http://localhost:4000/api',
       appName: 'Auth App',
+      // Cloudflare Turnstile site key; leave empty when the API has no TURNSTILE_SECRET_KEY
+      turnstileSiteKey: '',
     },
   },
 
