@@ -1,40 +1,40 @@
 <script setup lang="ts">
-const LOCK_MS = 30 * 60 * 1000
-
 const { login } = useAuth()
+const store = useAuthStore()
 const errors = useFormErrors()
 
-const form = reactive<LoginPayload>({ username: '', password: '' })
 const loading = ref(false)
+const form = reactive({ username: '', password: '' })
+const captcha = ref<{ reset: () => void, enabled: boolean }>()
+const captchaToken = ref('')
 
-// After a 403 LOCKED, block further attempts for that username for 30 minutes.
-const locked = ref<{ username: string, until: number } | null>(null)
-const isLocked = computed(() =>
-  !!locked.value
-  && locked.value.username === form.username.trim()
-  && Date.now() < locked.value.until,
-)
-
+// Failures all come back as "Invalid username or password" (401),
+// or "Too many attempts…" (429) after 10 tries in 15 minutes.
 async function onSubmit() {
   errors.reset()
-  const usernameError = required(form.username)
-  const passwordError = required(form.password)
-  if (usernameError || passwordError) {
-    errors.fields.value = { username: usernameError, password: passwordError }
+  const fields = { username: required(form.username), password: required(form.password) }
+  if (fields.username || fields.password) {
+    errors.fields.value = fields
+    return
+  }
+  if (captcha.value?.enabled && !captchaToken.value) {
+    errors.message.value = 'Please complete the CAPTCHA.'
     return
   }
 
   loading.value = true
   try {
-    await login({ username: form.username.trim(), password: form.password })
+    await login({
+      username: form.username.trim(),
+      password: form.password,
+      ...(captchaToken.value && { captchaToken: captchaToken.value }),
+    })
   }
   catch (error) {
-    errors.handle(error)
-    if (errors.status.value === 'LOCKED') {
-      locked.value = { username: form.username.trim(), until: Date.now() + LOCK_MS }
-    }
+    errors.handle(error, ['username', 'password'])
   }
   finally {
+    captcha.value?.reset()
     loading.value = false
   }
 }
@@ -46,6 +46,12 @@ async function onSubmit() {
     novalidate
     @submit.prevent="onSubmit"
   >
+    <BaseAlert
+      v-if="store.notice && !errors.message.value"
+      variant="info"
+    >
+      {{ store.notice }}
+    </BaseAlert>
     <BaseAlert v-if="errors.message.value">
       {{ errors.message.value }}
     </BaseAlert>
@@ -66,10 +72,14 @@ async function onSubmit() {
       required
     />
 
+    <AuthCaptchaWidget
+      ref="captcha"
+      v-model="captchaToken"
+    />
+
     <BaseButton
       type="submit"
       :loading="loading"
-      :disabled="isLocked"
       block
     >
       Log in
