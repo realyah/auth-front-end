@@ -30,7 +30,7 @@ app/
   composables/            useAuth, useApi, useFormErrors
   layouts/                default.vue, auth.vue
   middleware/             auth (protected), guest (auth pages)
-  pages/                  File-based routes (/, /dashboard, /auth/*)
+  pages/                  File-based routes (/, /dashboard, /profile, /auth/*)
   plugins/                api.ts ($api fetch instance), auth.ts (session restore)
   stores/                 Pinia stores (auth)
   types/                  Client-only types
@@ -44,11 +44,17 @@ public/                   Static files
 ## Auth flow
 
 Backend: Auth API (see "Auth API — Frontend Integration Guide"), default `http://localhost:4000/api`.
+The app runs client-only (`ssr: false`) because the session cookie belongs to the API host.
 
-- Token stored in an `auth_token` cookie (SSR-safe, 7 days); user kept in the Pinia `auth` store.
-- `$api` (`app/plugins/api.ts`) adds `Authorization: Bearer <token>`; a 401 on an authenticated call clears the session and redirects to login.
-- `POST /auth/register` (username 3–30, password ≥ 6) → then `POST /auth/login` automatically.
-- `POST /auth/login` → `{ token, user }`; failures show `FAILED_PASSWORD` (tries left) / `LOCKED` (30 min).
-- `GET /auth/profile` restores the user on page load.
-- No logout endpoint — logout just deletes the token.
-- Todos: `useTodosApi()`; All About Me: `useAboutMeApi()`.
+- **Session**: HttpOnly cookie set by the API. Every request uses `credentials: 'include'`; no token is stored in JS.
+- **CSRF**: `GET /auth/csrf-token` on load, kept in memory (Pinia), sent as `X-CSRF-Token` on POST/PUT/DELETE.
+  Login responses replace it; a 403 "Invalid or missing CSRF token" refetches and retries once (`app/plugins/api.ts`).
+- **Startup**: `GET /auth/session` → 200 logged in (then `GET /auth/profile`), 401 → login.
+- **Login**: `POST /auth/login` → session cookie + new `csrfToken`. All failures: "Invalid username or password"; 429 after 10 tries / 15 min.
+- **Register**: username 3–30 (letters, numbers, `.` `_` `-`), password 12–128; then logs in.
+- **Logout**: `POST /auth/logout`.
+- **Expiry**: 401 with `reason` `IDLE_TIMEOUT` (30 min) / `REAUTH_REQUIRED` (8 h) → back to login with a notice.
+- **Errors**: `useFormErrors().handle(error, fields)` puts 400 `details` next to fields; 429/413/5xx get a message.
+- **CAPTCHA**: set `NUXT_PUBLIC_TURNSTILE_SITE_KEY` when the API has `TURNSTILE_SECRET_KEY`.
+- **CORS**: the API's `CORS_ORIGIN` must list this app's exact origin (e.g. `http://localhost:3000`).
+- Player profile + avatar: `useProfile()`, page `/profile`. Todos: `useTodosApi()`; All About Me: `useAboutMeApi()`.
