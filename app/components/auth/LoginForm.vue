@@ -8,25 +8,23 @@ const form = reactive({ username: '', password: '' })
 const captcha = ref<{ reset: () => void, enabled: boolean }>()
 const captchaToken = ref('')
 
-// Optional, unticked by default. Location is requested as soon as the box is
-// ticked so the permission prompt doesn't delay the login itself.
-const shareLocation = ref(false)
-const geoState = ref<'idle' | 'locating' | 'ready' | 'unavailable'>('idle')
+// Location is requested automatically when the page opens, so it's usually
+// ready by the time the user submits. The browser still shows its own
+// permission prompt the first time (that can't be skipped). If the user
+// declines or it fails, login goes ahead and the server uses the IP instead.
+const GEO_MAX_WAIT_MS = 3000
 let pendingGeo: Promise<LoginGeo | undefined> | null = null
 
-watch(shareLocation, (on) => {
-  if (!on) {
-    pendingGeo = null
-    geoState.value = 'idle'
-    return
-  }
-  geoState.value = 'locating'
-  const request = getGeo()
-  pendingGeo = request
-  request.then((geo) => {
-    if (pendingGeo === request) geoState.value = geo ? 'ready' : 'unavailable'
-  })
+onMounted(() => {
+  pendingGeo = getGeo()
 })
+
+/** The location if it's ready within a short wait — never holds up login for long. */
+function geoForLogin() {
+  if (!pendingGeo) return Promise.resolve(undefined)
+  const giveUp = new Promise<undefined>(resolve => setTimeout(resolve, GEO_MAX_WAIT_MS))
+  return Promise.race([pendingGeo, giveUp])
+}
 
 // Failures all come back as "Invalid username or password" (401),
 // or "Too many attempts…" (429) after 10 tries in 15 minutes.
@@ -44,8 +42,8 @@ async function onSubmit() {
 
   loading.value = true
   try {
-    // Never blocks login: getGeo() resolves undefined on denial/failure/timeout.
-    const geo = shareLocation.value && pendingGeo ? await pendingGeo : undefined
+    // Never blocks login: undefined on denial, failure or a slow answer.
+    const geo = await geoForLogin()
     await login({
       username: form.username.trim(),
       password: form.password,
@@ -95,32 +93,6 @@ async function onSubmit() {
       required
     />
 
-    <div class="space-y-1">
-      <label class="flex items-start gap-2 text-sm text-gray-700">
-        <input
-          v-model="shareLocation"
-          type="checkbox"
-          class="mt-0.5 size-4 rounded border-gray-300 accent-brand-600"
-        >
-        Share my location to protect my account
-      </label>
-      <p
-        v-if="geoState !== 'idle'"
-        class="pl-6 text-xs"
-        :class="geoState === 'unavailable' ? 'text-amber-600' : 'text-gray-500'"
-      >
-        <template v-if="geoState === 'locating'">
-          Getting your location…
-        </template>
-        <template v-else-if="geoState === 'ready'">
-          Location ready.
-        </template>
-        <template v-else>
-          Location unavailable — you can still log in.
-        </template>
-      </p>
-    </div>
-
     <AuthCaptchaWidget
       ref="captcha"
       v-model="captchaToken"
@@ -133,5 +105,9 @@ async function onSubmit() {
     >
       Log in
     </BaseButton>
+
+    <p class="text-center text-xs text-gray-500">
+      We record where you sign in from to protect your account.
+    </p>
   </form>
 </template>
