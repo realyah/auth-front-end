@@ -25,9 +25,13 @@ export interface PlayerProfile {
 
 export type PlayerProfileUpdate = Partial<PlayerProfile>
 
+export type UserRole = 'user' | 'admin'
+
 export interface User {
   id: string
   username: string
+  /** From GET /auth/profile — show admin links only for 'admin'. */
+  role?: UserRole
   /** Path like /uploads/avatars/abc.png — prefix with the API origin (see avatarSrc). */
   avatarUrl?: string | null
   profile?: PlayerProfile
@@ -37,14 +41,23 @@ export interface User {
   userAgentString?: LoginDetails
 }
 
+/** Browser GPS shared at login (optional). Malformed values are ignored by the server. */
+export interface LoginGeo {
+  lat: number
+  lng: number
+  /** metres */
+  accuracy: number
+}
+
 export interface LoginPayload {
   username: string
   password: string
+  geo?: LoginGeo
   /** Cloudflare Turnstile token — only when CAPTCHA is turned on. */
   captchaToken?: string
 }
 
-export type RegisterPayload = LoginPayload
+export type RegisterPayload = Omit<LoginPayload, 'geo'>
 
 /** POST /auth/register → 201 (no session — call login next) */
 export interface RegisterResponse {
@@ -137,4 +150,35 @@ export interface AboutMe extends AboutMeFields {
   username: string
   createdAt: string
   updatedAt: string
+}
+
+// ── Admin ────────────────────────────────────────────────
+
+/** One login attempt with a location (GPS if shared, otherwise IP lookup). */
+export interface LoginEvent {
+  id: string
+  userId: string | null
+  username: string | null
+  success: boolean
+  ip: string | null
+  country: string | null
+  city: string | null
+  lat: number
+  lng: number
+  accuracyM: number | null
+  source: 'gps' | 'ip'
+  createdAt: string
+}
+
+/** GET /admin/login-events query: days 1–365 (30), limit 1–5000 (1000). */
+export interface LoginEventsQuery {
+  days?: number
+  limit?: number
+  userId?: string
+  success?: boolean
+}
+
+export interface LoginEventsResponse {
+  count: number
+  events: LoginEvent[]
 }
