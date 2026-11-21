@@ -8,12 +8,14 @@ const form = reactive({
   passwordConfirmation: '',
 })
 const loading = ref(false)
+const captcha = ref<{ reset: () => void, enabled: boolean }>()
+const captchaToken = ref('')
 
-// Mirrors the API rules: username 3–30 chars (trimmed), password ≥ 6 chars.
+// Mirrors the API rules: username 3–30 of letters, numbers, . _ -; password 12–128.
 function validate() {
   const fields: Record<string, string> = {
-    username: lengthBetween(3, 30)(form.username),
-    password: minLength(6)(form.password),
+    username: usernameRule(form.username),
+    password: newPasswordRule(form.password),
     passwordConfirmation: form.password === form.passwordConfirmation ? '' : 'Passwords do not match.',
   }
   errors.fields.value = fields
@@ -23,15 +25,24 @@ function validate() {
 async function onSubmit() {
   errors.reset()
   if (!validate()) return
+  if (captcha.value?.enabled && !captchaToken.value) {
+    errors.message.value = 'Please complete the CAPTCHA.'
+    return
+  }
 
   loading.value = true
   try {
-    await register({ username: form.username.trim(), password: form.password })
+    await register({
+      username: form.username.trim(),
+      password: form.password,
+      ...(captchaToken.value && { captchaToken: captchaToken.value }),
+    })
   }
   catch (error) {
-    errors.handle(error)
+    errors.handle(error, ['username', 'password'])
   }
   finally {
+    captcha.value?.reset()
     loading.value = false
   }
 }
@@ -54,6 +65,12 @@ async function onSubmit() {
       :error="errors.fields.value.username"
       required
     />
+    <p
+      v-if="!errors.fields.value.username"
+      class="-mt-3 text-xs text-gray-500"
+    >
+      3–30 characters: letters, numbers, ".", "_" and "-".
+    </p>
     <BaseInput
       v-model="form.password"
       label="Password"
@@ -62,6 +79,12 @@ async function onSubmit() {
       :error="errors.fields.value.password"
       required
     />
+    <p
+      v-if="!errors.fields.value.password"
+      class="-mt-3 text-xs text-gray-500"
+    >
+      At least 12 characters. A short phrase is easy to remember.
+    </p>
     <BaseInput
       v-model="form.passwordConfirmation"
       label="Confirm password"
@@ -69,6 +92,11 @@ async function onSubmit() {
       autocomplete="new-password"
       :error="errors.fields.value.passwordConfirmation"
       required
+    />
+
+    <AuthCaptchaWidget
+      ref="captcha"
+      v-model="captchaToken"
     />
 
     <BaseButton
