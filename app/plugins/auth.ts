@@ -1,12 +1,9 @@
 /**
- * Restores the user on first load when a token cookie exists.
+ * On app start: get a CSRF token, then ask the API whether the session cookie
+ * is still logged in (GET /auth/session: 200 = yes, 401 = show login).
  * Runs after the api plugin (alphabetical order: api.ts < auth.ts).
  */
 export default defineNuxtPlugin(async () => {
-  const auth = useAuthStore()
-  const { fetchUser } = useAuth()
-
-  if (auth.token && !auth.user) {
-    await fetchUser()
-  }
+  const { restoreSession } = useAuth()
+  await restoreSession()
 })
