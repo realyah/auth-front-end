@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// Extra attributes (inputmode, maxlength, …) go on the <input>, not the wrapper.
+defineOptions({ inheritAttrs: false })
+
 withDefaults(defineProps<{
   label?: string
   type?: string
@@ -24,6 +27,7 @@ const id = useId()
       {{ label }}
     </label>
     <input
+      v-bind="$attrs"
       :id="id"
       v-model="model"
       :type="type"
