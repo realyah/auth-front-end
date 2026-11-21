@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth', middleware: 'guest' })
-useSeoMeta({ title: 'Sign up' })
+useSeoMeta({ title: 'Sign up', description: 'Create a free account to set up your player profile.' })
 </script>
 
 <template>
