@@ -5,9 +5,23 @@ import type { LayerGroup, Map as LeafletMap } from 'leaflet'
 /**
  * Leaflet + OpenStreetMap map of login attempts.
  * Green = successful, red = failed; each pin has a circle showing its accuracy.
+ * Events without a location (lat/lng null) are skipped, so the same component
+ * works for the admin map and a user's own login activity.
  * Popups are built with textContent (never innerHTML) — event fields are user data.
  */
-const props = defineProps<{ events: LoginEvent[] }>()
+const props = withDefaults(defineProps<{
+  events: LoginEvent[]
+  /** Hide the username in popups (e.g. on the user's own page). */
+  showUsername?: boolean
+  height?: string
+}>(), {
+  showUsername: true,
+  height: '600px',
+})
+
+const located = computed(() =>
+  props.events.filter((e): e is LocatedLoginEvent => e.lat != null && e.lng != null),
+)
 
 const COLORS = { success: '#16a34a', failed: '#dc2626' }
 
@@ -16,16 +30,18 @@ let L: typeof import('leaflet') | null = null
 let map: LeafletMap | null = null
 let layer: LayerGroup | null = null
 
-function popupFor(event: LoginEvent) {
+function popupFor(event: LocatedLoginEvent) {
   const root = document.createElement('div')
   root.style.minWidth = '180px'
 
-  const title = document.createElement('strong')
-  title.textContent = event.username ?? 'Unknown user'
-  root.appendChild(title)
+  if (props.showUsername) {
+    const title = document.createElement('strong')
+    title.textContent = event.username ?? 'Unknown user'
+    root.appendChild(title)
+  }
 
   const rows: [string, string][] = [
-    ['Result', event.success ? 'Success' : 'Failed'],
+    ['Result', event.success ? 'Signed in' : 'Failed attempt'],
     ['When', new Date(event.createdAt).toLocaleString()],
     ['Place', [event.city, event.country].filter(Boolean).join(', ') || '—'],
     ['IP', event.ip ?? '—'],
@@ -54,7 +70,7 @@ function draw() {
   layer.clearLayers()
 
   // Oldest first so the newest pins sit on top.
-  for (const event of [...props.events].reverse()) {
+  for (const event of [...located.value].reverse()) {
     const color = event.success ? COLORS.success : COLORS.failed
     const latLng: [number, number] = [event.lat, event.lng]
 
@@ -79,8 +95,8 @@ function draw() {
       .addTo(layer)
   }
 
-  if (props.events.length) {
-    const bounds = L.latLngBounds(props.events.map(e => [e.lat, e.lng] as [number, number]))
+  if (located.value.length) {
+    const bounds = L.latLngBounds(located.value.map(e => [e.lat, e.lng] as [number, number]))
     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 })
   }
   else {
@@ -90,7 +106,7 @@ function draw() {
 
 /** Center the map on one event and open its popup (used by the table). */
 function focus(event: LoginEvent) {
-  if (!map) return
+  if (!map || event.lat == null || event.lng == null) return
   map.setView([event.lat, event.lng], Math.max(map.getZoom(), 11))
   layer?.eachLayer((l) => {
     if ('getLatLng' in l && 'openPopup' in l) {
@@ -113,7 +129,7 @@ onMounted(async () => {
   draw()
 })
 
-watch(() => props.events, draw)
+watch(located, draw)
 
 onBeforeUnmount(() => {
   map?.remove()
@@ -124,6 +140,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="el"
-    class="h-[600px] w-full overflow-hidden rounded-2xl ring-1 ring-gray-200"
+    class="w-full overflow-hidden rounded-2xl ring-1 ring-gray-200"
+    :style="{ height }"
   />
 </template>
