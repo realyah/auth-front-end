@@ -62,9 +62,7 @@ function filterByUser(event: LoginEvent) {
   if (event.userId) userFilter.value = { id: event.userId, username: event.username }
 }
 
-function place(event: LoginEvent) {
-  return [event.city, event.country].filter(Boolean).join(', ') || '—'
-}
+const place = loginEventPlace
 </script>
 
 <template>
