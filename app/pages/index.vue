@@ -16,10 +16,10 @@ useSeoMeta({ title: 'Home' })
     <div class="mt-8 flex justify-center gap-3">
       <BaseButton
         v-if="isAuthenticated"
-        to="/dashboard"
+        to="/profile"
         size="lg"
       >
-        Go to dashboard
+        Go to my profile
       </BaseButton>
       <template v-else>
         <BaseButton
