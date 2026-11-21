@@ -24,6 +24,13 @@ const { isAdmin } = useAdmin()
             Dashboard
           </BaseButton>
           <BaseButton
+            to="/security"
+            variant="ghost"
+            size="sm"
+          >
+            Security
+          </BaseButton>
+          <BaseButton
             v-if="isAdmin"
             to="/admin/logins"
             variant="ghost"
