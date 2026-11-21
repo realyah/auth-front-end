@@ -15,7 +15,6 @@ const { user, isAuthenticated, logout } = useAuth()
 
       <nav class="flex items-center gap-3">
         <template v-if="isAuthenticated">
-          <span class="hidden text-sm text-gray-600 sm:inline">{{ user?.username }}</span>
           <BaseButton
             to="/dashboard"
             variant="ghost"
@@ -23,6 +22,16 @@ const { user, isAuthenticated, logout } = useAuth()
           >
             Dashboard
           </BaseButton>
+          <NuxtLink
+            to="/profile"
+            class="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-gray-700 hover:bg-gray-100"
+          >
+            <BaseAvatar
+              :user="user"
+              size="sm"
+            />
+            <span class="hidden sm:inline">{{ displayNameOf(user) }}</span>
+          </NuxtLink>
           <BaseButton
             variant="secondary"
             size="sm"
