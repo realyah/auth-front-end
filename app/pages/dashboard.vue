@@ -145,9 +145,17 @@ const completion = computed(() => {
 
       <!-- Login activity -->
       <section class="rounded-2xl bg-white p-6 ring-1 ring-gray-200">
-        <h2 class="mb-4 font-semibold">
-          Login activity
-        </h2>
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="font-semibold">
+            Last login
+          </h2>
+          <NuxtLink
+            to="/security"
+            class="text-sm font-medium text-brand-600 hover:text-brand-700"
+          >
+            All activity
+          </NuxtLink>
+        </div>
         <dl class="divide-y divide-gray-100">
           <div
             v-for="item in loginDetails"
