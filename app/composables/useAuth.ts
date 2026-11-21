@@ -1,51 +1,74 @@
+import { FetchError } from 'ofetch'
+
 /**
  * Auth actions. State lives in the Pinia store; this composable
  * owns the side-effects (API calls, navigation).
  *
- * Endpoints (see Auth API guide):
- *   POST /auth/register  → creates the account, no token
- *   POST /auth/login     → returns { token, user }
- *   GET  /auth/profile   → current user (needs token)
- * There is no logout endpoint — logging out = deleting the token.
+ *   GET  /auth/csrf-token  → token for X-CSRF-Token (on app load + after logout)
+ *   GET  /auth/session     → 200 logged in, 401 not
+ *   POST /auth/register    → creates the account (no session — log in next)
+ *   POST /auth/login       → starts the session, returns a new csrfToken
+ *   POST /auth/logout      → destroys the session cookie
+ *   GET  /auth/profile     → full user
  */
 export function useAuth() {
   const store = useAuthStore()
-  const { $api } = useNuxtApp()
+  const { $api, $refreshCsrf } = useNuxtApp()
   const { user, isAuthenticated } = storeToRefs(store)
 
-  async function signIn(payload: LoginPayload) {
-    const res = await $api<LoginResponse>('/auth/login', { method: 'POST', body: payload })
-    store.setSession(res.token, res.user)
-    // Login only returns id + username; load the full profile.
-    await fetchUser()
+  async function fetchUser() {
+    const res = await $api<ProfileResponse>('/auth/profile')
+    store.setUser(res.user)
+  }
+
+  async function restoreSession() {
+    try {
+      await $refreshCsrf()
+      await $api<SessionResponse>('/auth/session')
+      await fetchUser()
+    }
+    catch {
+      store.setUser(null)
+    }
+  }
+
+  async function goAfterLogin() {
+    await navigateTo(safeRedirect(useRoute().query.redirect))
   }
 
   async function login(payload: LoginPayload) {
-    await signIn(payload)
-    await navigateTo(safeRedirect(useRoute().query.redirect))
+    await $api<LoginResponse>('/auth/login', { method: 'POST', body: payload })
+    store.notice = ''
+    await fetchUser()
+    await goAfterLogin()
   }
 
   async function register(payload: RegisterPayload) {
     await $api<RegisterResponse>('/auth/register', { method: 'POST', body: payload })
-    // Register doesn't return a token — log in with the same credentials.
-    await signIn(payload)
-    await navigateTo('/dashboard')
-  }
-
-  async function fetchUser() {
+    // Log straight in. The CAPTCHA token is single-use, so if CAPTCHA is on this login is refused — send the user to login.
     try {
-      const res = await $api<ProfileResponse>('/auth/profile')
-      store.setUser(res.user)
+      await login({ username: payload.username, password: payload.password })
     }
-    catch {
-      store.clearSession()
+    catch (error) {
+      if (error instanceof FetchError && error.response?.status === 400) {
+        store.notice = 'Account created — please log in.'
+        await navigateTo('/auth/login')
+        return
+      }
+      throw error
     }
   }
 
   async function logout() {
+    try {
+      await $api('/auth/logout', { method: 'POST' })
+    }
+    catch {
+      // Clear locally regardless.
+    }
     store.clearSession()
     await navigateTo('/auth/login')
   }
 
-  return { user, isAuthenticated, login, register, fetchUser, logout }
+  return { user, isAuthenticated, restoreSession, fetchUser, login, register, logout }
 }
