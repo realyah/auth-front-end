@@ -1,0 +1,30 @@
+{
+  "name": "auth-front-end",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@pinia/nuxt": "^1.0.3",
+    "nuxt": "^4.6.4",
+    "pinia": "^4.1.0",
+    "vue": "^3.5.46",
+    "vue-router": "^5.5.1"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.17.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "eslint": "^10.15.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.3.14"
+  }
+}
